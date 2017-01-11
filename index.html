@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+    background-color: #FFF1E1;
+}
+
+h2 {
+  font-family: "BentonSans";
+  font-weight: normal;
+  margin-left: 50px;
+  font-size: 1.8em;
+}
+
+h3 {
+  font-family: "BentonSans";
+  font-weight: normal;
+  margin-left: 50px;
+  margin-top: -10px;
+  color: #7D7B74;
+  font-size: 0.9em;
+}
+
+.axis--y path {
+  display: none;
+}
+
+.axis--y line {
+  stroke-dasharray: 2,2;
+  stroke: lightGrey;
+}
+
+.axis--x path {
+  stroke: #C9C5B7;
+  stroke-width: 2;
+}
+
+.axis--x line {
+  stroke: #C9C5B7;
+}
+
+.line {
+  fill: none;
+  stroke: #D0C7BF;
+  stroke-width: 2.5px;
+}
+
+.secLine {
+  fill: none;
+  stroke-width: 2.5px;
+}
+
+div.tooltip {
+  width: 250px;
+  position: absolute;
+  text-align: left;
+  color: black;
+  padding: 0;
+  font-size: 10px;
+  background: #FFF8ED;
+  border: 0;
+  pointer-events: none;
+  display: block;
+  font-family: "BentonSans";
+}
+
+div.tooltip2 {
+  position: absolute;
+  font-size: 12px;
+  pointer-events: none;
+  display: block;
+  font-family: "BentonSans";
+  font-weight: 500;
+}
+
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+
+</style>
+<body>
+<h2> Significant Moments in Caterpillar's Year </h1>
+<h3> Share Price ($) </h3>
+<svg width="900" height="550"></svg>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+var svg = d3.select("svg"),
+    margin = {top: 20, right: 20, bottom: 30, left: 50},
+    width = +svg.attr("width") - margin.left - margin.right,
+    height = +svg.attr("height") - margin.top - margin.bottom,
+    g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+var parseTime = d3.timeParse("%m/%d/%Y");
+
+var x = d3.scaleTime()
+    .rangeRound([0, width]);
+
+var y = d3.scaleLinear()
+    .rangeRound([height, 0]);
+
+var y2 = d3.scaleLinear()
+    .rangeRound([height, 0]);
+
+var color = ["#005eb8", "#FFCF0E"];
+
+var div1 = d3.select("body").append("div")
+     .attr("class", "tooltip")
+     .style("opacity", 0);
+
+var div2 = d3.select("body").append("div")
+    .attr("class", "tooltip2")
+    .style("opacity", 0);
+
+function sortByDateAscending(a, b) {
+  // Dates will be cast to numbers automatically:
+  return a.Date - b.Date;
+}
+
+d3.csv("CAT_GE_Stock.csv", function(error, data) {
+  if (error) throw error;
+
+  var line = d3.line()
+      .x(function(d) { return x(d.Date); })
+      .y(function(d) { return y(d.AdjClose); })
+      .curve(d3.curveBasis);
+
+//FILTER COMPANY
+  data = data.filter(function(d) { return d.Company === "CAT";})
+
+  data.forEach(function(d) {
+    d.Date = parseTime(d.Date);
+    d.AdjClose = +d.AdjClose;
+  });
+
+  data = data.sort(sortByDateAscending);
+
+  x.domain([parseTime("1/1/16"),parseTime("11/30/16")]);
+  y.domain([d3.min(data, function(d) { return d.AdjClose; }) - 15, d3.max(data, function(d) { return d.AdjClose; }) +10 ]);
+//  y.domain([0, d3.max(data, function(d) { return d.AdjClose; }) +10 ]);
+
+  var xGroup = g.append("g")
+      .attr("class", "axis axis--x")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x)
+        .tickPadding(0)
+        .tickSizeOuter([0])
+        .tickSizeInner([12])
+        .tickFormat(d3.timeFormat("%B"))
+      );
+
+      d3.select(".axis--x line").remove()
+
+  xGroup.selectAll("text")
+    .attr("dx", +width/22)
+    .style("fill", "#7D7B74")
+    .style("font-size", "12px")
+    .style("font-family","BentonSans");
+
+  var yGroup = g.append("g")
+      .attr("class", "axis axis--y")
+      .attr("stroke-width", 1)
+      .call(d3.axisRight(y)
+        .ticks(4)
+        .tickSizeInner(width)
+      );
+
+  yGroup.selectAll("text")
+    .attr("x", width-25)
+    .attr("dy", -10)
+    .style("fill", "#7D7B74")
+    .style("font-size", "12px")
+    .style("font-family","BentonSans")
+    .attr("display", "none");
+
+    var nested = d3.nest()
+      .key(function(d) { return d.Company; })
+      .entries(data);
+
+    //  console.log(nested);
+
+    g.selectAll(".line")
+    .data(nested)
+    .enter()
+    .append("path")
+            .attr("class", "line")
+            .attr("d", function (d) { console.log("stock",d); return line(d.values)})
+
+    //ADD COLORS
+   .style("stroke", function () { return color[1]});
+
+  // g.selectAll(".dateCircle")
+  //   .data(data)
+  //   .enter().append("circle")
+  //     .attr("cx", function (d) {return x(d.Date)})
+  //     .attr("cy", function (d) {return y(d.AdjClose)})
+  //     .attr("r", 5)
+  //     .attr("fill", "#B84D66")
+  //     .attr("display", function(d) {
+  //       if (d.Notes !== "none") { return "inline"}
+  //       else {return "none";}
+  //     })
+
+    var circleHover = g.selectAll(".circleHover")
+                        .data(data)
+                        .enter();
+
+      circleHover.append("circle")
+          .attr("cx", function (d) {return x(d.Date)})
+          .attr("cy", function (d) {return y(d.AdjClose)})
+          .attr("r", 5)
+          .style("cursor", "pointer")
+        //  .style("fill", "#D0C7BF")
+          .style("fill", function (d) {
+            if (d.Company === "CAT") { return color[1]; }
+            else { return color[0]; }
+          })
+          .attr("opacity", 0)
+          .on("mouseover", function(d) {
+            d3.select(this).attr("opacity", 1);
+
+            // function textColor() { if (d.Company === "CAT") { return color[1]; } else { return color[0]; }};
+            // div2.transition().duration(300).style("opacity", 1);
+            //       div2.html(
+            //         "<div><p style=color:#D0C7BF>" + d3.format(".4n")(d.AdjClose) + " $ </p></div>"
+            //       )
+            //       div2.style("left", (d3.event.pageX - 20) + "px")
+            //       .style("top", (d3.event.pageY+20) + "px");
+
+            function textColor() { if (d.Company === "CAT") { return color[1]; } else { return color[0]; }};
+            div2.transition().duration(300).style("opacity", 1);
+                  div2.html(
+                    "<div><p style=color:" + textColor(d.Company) + ">" + d3.format(".4n")(d.AdjClose) + " $ </p></div>"
+                  )
+                  div2.style("left", (d3.event.pageX - 20) + "px")
+                  //div2.style("center", (d3.event.pageX - 20) + "px")
+                  .style("top", (d3.event.pageY+20) + "px");
+
+          })
+          .on("mouseout", function(d) {
+            d3.select(this).attr("opacity", 0);
+            div2.transition().duration(300).style("opacity", 0);
+          });
+
+      // var textHover = g.selectAll(".textHover")
+      //   .data(data)
+      //   .enter().append("text")
+      //   .attr("x", function (d) {return x(d.Date)})
+      //   .attr("y", function (d) {return y(d.AdjClose)-30})
+      //   .attr("dx", "-0.25em")
+      //   .attr("dy", "-.35em")
+      //   .style("fill", function (d) {
+      //     if (d.Company === "CAT") { return color[1]; }
+      //     else { return color[0]; }
+      //   })
+      //  .style("font-size", "10px")
+      //  .style("font-family","BentonSans")
+      //  .style("cursor", "pointer")
+      //  .text(function(d) { return d.AdjClose;})
+      //  .on("mouseover", function(d) {
+      //    d3.select(this).attr("opacity", 1)
+      //  })
+      //  .on("mouseout", function(d) {
+      //    d3.select(this).attr("opacity", 0)
+      //  });
+
+//       var calloutCircle = g.selectAll(".calloutCircle")
+//                       .data(data)
+//                       .enter()
+//                       .filter(function(d) { return d.Notes !== "none";})
+//                       .append("g");
+//
+//           calloutCircle.append("circle")
+//                         .attr("cx", function (d) {return x(d.Date)})
+//                         .attr("cy", function (d) {return y(d.AdjClose)-30})
+//                         .attr("r", 15)
+//                         .attr("fill", "#FFF8ED")
+//                         .attr("stroke", "#B84D66")
+//                         .attr("stroke-width", 2)
+//                         .style("cursor", "pointer")
+//                         .on("mouseover", function(d) {
+//                           var timeFormat = d3.timeFormat("%B %d, 20%y");
+//                           div1.transition().duration(300).style("opacity", 1);
+//                                 div1.html(
+//                                   "<div style=margin-left:10px;margin-top:10px> <div style=float:left> <p style=font-weight:bold;padding-right:10px;font-size:14px;margin-top:0px>" + timeFormat(d.Date) + " </p> <p style=font-weight:regular;padding-right:10px;word-wrap:break-word> " + d.Notes + " </p>"
+//                                 )
+//                                 div1.style("left", (d3.event.pageX) + "px")
+//                                 .style("top", (d3.event.pageY-10) + "px");
+//                          })
+//                         .on("mouseout", function () {
+//                                   div1.transition().duration(300).style("opacity", 0);
+//                                   });
+//
+//   calloutCircle.append("text")
+//      .attr("x", function (d) {return x(d.Date)})
+//      .attr("y", function (d) {return y(d.AdjClose)-30})
+//      .attr("dx", "-0.25em")
+//      .attr("dy", ".35em")
+//       .style("fill", "#B84D66")
+//       .style("font-size", "18px")
+//       .style("font-family","BentonSans")
+//       .style("cursor", "pointer")
+//       .text(function(d,i) { return i + 1;})
+//       .on("mouseover", function(d) {
+//         var timeFormat = d3.timeFormat("%B %d, 20%y");
+//         div1.transition().duration(300).style("opacity", 1);
+//               div1.html(
+//                 "<div style=margin-left:10px;margin-top:10px> <div style=float:left> <p style=font-weight:bold;padding-right:10px;font-size:14px;margin-top:0px>" + timeFormat(d.Date) + " </p> <p style=font-weight:regular;padding-right:10px;word-wrap:break-word> " + d.Notes + " </p>"
+//               )
+//               div1.style("left", (d3.event.pageX) + "px")
+//               .style("top", (d3.event.pageY-10) + "px");
+//        })
+//       .on("mouseout", function () {
+//                 div1.transition().duration(300).style("opacity", 0);});
+
+ });
+
+d3.csv("GoogleTrends_CaterpillarSearch_2016.csv", function(error, data) {
+  if (error) throw error;
+
+  var line = d3.line()
+      .x(function(d) { return x(d.Week); })
+      .y(function(d) { return y(d.TrendIndex); })
+      .curve(d3.curveMonotoneX);
+
+  data.forEach(function(d) {
+    d.Week = parseTime(d.Week);
+    d.TrendIndex = +d.TrendIndex;
+  });
+
+  function sortByDateAscending(a, b) {
+    // Dates will be cast to numbers automatically:
+    return a.Week - b.Week;
+  }
+
+  data = data.sort(sortByDateAscending);
+
+  x.domain([parseTime("1/1/16"),parseTime("11/30/16")]);
+  y.domain([d3.min(data, function(d) { return d.TrendIndex; }) - 50, d3.max(data, function(d) { return d.TrendIndex; }) +20 ]);
+
+  var nested = d3.nest()
+    .key(function(d) { return d.Company; })
+    .entries(data);
+
+  g.selectAll(".secLine")
+  .data(nested)
+  .enter()
+  .append("path")
+          .attr("class", "secLine")
+          .attr("d", function (d) { return line(d.values)})
+
+  //ADD COLORS
+ .style("stroke", function () { return color[0]});
+
+ var circleHover = g.selectAll(".circleHover")
+                     .data(data)
+                     .enter();
+
+   circleHover.append("circle")
+       .attr("cx", function (d) {return x(d.Week)})
+       .attr("cy", function (d) {return y(d.TrendIndex)})
+       .attr("r", 5)
+       .style("cursor", "pointer")
+       .style("fill", function () { return color[0]})
+       .attr("opacity", 0)
+       .on("mouseover", function(d) {
+         d3.select(this).attr("opacity", 1);
+         div2.transition().duration(300).style("opacity", 1);
+               div2.html(
+                 "<div><p style=color:#005eb8>" + d.TrendIndex + "</p></div>"
+               )
+               div2.style("left", (d3.event.pageX) + "px")
+               .style("top", (d3.event.pageY+20) + "px");
+
+       })
+       .on("mouseout", function(d) {
+         d3.select(this).attr("opacity", 0);
+         div2.transition().duration(300).style("opacity", 0);
+       });
+
+
+});
+
+</script>
+
+<div> <h3 style=padding-left:400px;padding-top:15px> 2016 </h3> </div>
+
+</body>
